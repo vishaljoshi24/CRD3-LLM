@@ -98,7 +98,7 @@ training_args = TrainingArguments(
     fp16=False,  # Disable mixed precision to avoid memory spikes
     gradient_accumulation_steps=8,  # Accumulate gradients to simulate larger batch size
     report_to="none",
-    no_cuda=False  # Enable CUDA if available
+    no_cuda=True  # Enable CUDA if available
 )
 
 # Initialize the Trainer
