@@ -1,17 +1,11 @@
 from load_data import CRD3
-from datasets import DatasetDict
-from transformers import AutoTokenizer
-import evaluate
+from datasets import DatasetDict, load_from_disk, Dataset
+from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments, Trainer, DataCollatorForLanguageModeling
 import pandas as pd
-import numpy as np
-from transformers import AutoModelForCausalLM
-from transformers import TrainingArguments, Trainer
-from datasets import Dataset
+import os
 
 # Initialize the CRD3 dataset builder
 crd3_builder = CRD3()
-
-# Ensure the dataset is downloaded and prepared
 crd3_builder.download_and_prepare()
 
 # Load the dataset splits
@@ -21,32 +15,23 @@ dataset = DatasetDict({
     "validation": crd3_builder.as_dataset(split="validation"),
 })
 
-#print(dataset["train"][0])
-
+# Load the tokenizer and model
 checkpoint = "openai-community/gpt2"
 tokenizer = AutoTokenizer.from_pretrained(checkpoint)
 model = AutoModelForCausalLM.from_pretrained(checkpoint)
 
-# Add a custom pad token (e.g., '[PAD]')
+# Add custom padding token
 tokenizer.add_special_tokens({'pad_token': '[PAD]'})
-
-# Now set the pad_token explicitly
 tokenizer.pad_token = '[PAD]'
+model.resize_token_embeddings(len(tokenizer))
 
-prefix = "Given the history and current utterance predict next utterance: "
-
-#print(dataset["train"][1]["turns"])
-print(len(dataset["train"][2]["turns"]))
-
-df = pd.DataFrame(dataset["train"]) #Convert training set into a pandas DataFrame
-
+# Pre-process the dataset
+df = pd.DataFrame(dataset["train"])
 def extract_turn_data(turns):
     inputs, labels = [], []
     for j in range(1, len(turns)):
         prev_turn = turns[j-1]
         current_turn = turns[j]
-
-        # Construct context and target strings
         context = " ".join(
             f"{name}: {utterance}"
             for name, utterance in zip(prev_turn["names"], prev_turn["utterances"])
@@ -55,63 +40,75 @@ def extract_turn_data(turns):
             f"{name}: {utterance}"
             for name, utterance in zip(current_turn["names"], current_turn["utterances"])
         )
-
         inputs.append(context)
         labels.append(target)
-
-    # Return flattened lists for easier tokenization
     return " ".join(inputs), " ".join(labels)
 
 df["inputs"], df["labels"] = zip(*df["turns"].apply(extract_turn_data))
 
-tokenized_dataset = tokenizer(
-    df["inputs"].explode().tolist(),
-    max_length=1024,
-    truncation=True,
-    padding="max_length",
-)
-
-labels_tokenized = tokenizer(
-    df["labels"].tolist(),  # Convert to List[str]
-    max_length=128,
-    truncation=True,
-    padding="max_length",
-)
-
-# Add labels to the tokenized dataset
-tokenized_dataset["labels"] = labels_tokenized["input_ids"]
-model.resize_token_embeddings(len(tokenizer))
-
-def prepare_for_training(tokenized_dataset, labels):
-    return Dataset.from_dict({
-        "input_ids": tokenized_dataset["input_ids"],
-        "attention_mask": tokenized_dataset["attention_mask"],
-        "labels": labels,  # Ensure this matches the "labels" structure
+# Tokenize the dataset
+def tokenize_and_save(dataset, output_dir):
+    tokenized_inputs = tokenizer(
+        dataset["inputs"].explode().tolist(),
+        max_length=512,
+        truncation=True,
+        padding="max_length",
+    )
+    tokenized_labels = tokenizer(
+        dataset["labels"].tolist(),
+        max_length=64,
+        truncation=True,
+        padding="max_length",
+    )
+    tokenized_inputs["labels"] = tokenized_labels["input_ids"]
+    hf_dataset = Dataset.from_dict({
+        "input_ids": tokenized_inputs["input_ids"],
+        "attention_mask": tokenized_inputs["attention_mask"],
+        "labels": tokenized_inputs["labels"],
     })
+    hf_dataset.save_to_disk(output_dir)
 
-train_dataset = prepare_for_training(tokenized_dataset, labels_tokenized["input_ids"])
+# Save preprocessed dataset
+data_dir = "processed_dataset"
+if not os.path.exists(data_dir):
+    tokenize_and_save(df, data_dir)
 
-training_args = TrainingArguments(
-    output_dir="./results",               # Directory to save checkpoints and outputs
-    evaluation_strategy="no",         # Evaluate after every epoch
-    learning_rate=5e-5,                   # Learning rate
-    per_device_train_batch_size=8,       # Batch size per device for training
-    per_device_eval_batch_size=8,        # Batch size per device for evaluation
-    num_train_epochs=3,                  # Number of epochs
-    weight_decay=0.01,                   # Weight decay for regularization
-    save_total_limit=2,                  # Save only the last 2 checkpoints
-    logging_dir="./logs",                # Directory for logs
-    logging_steps=500,                   # Log every 500 steps
-    save_steps=1000,                     # Save model every 1000 steps
-    fp16=True,                           # Enable mixed precision training (if using a GPU with FP16 support)
-    report_to="none",                    # Avoid reporting to external tools like WandB
+# Load dataset dynamically
+train_dataset = load_from_disk(data_dir)
+
+# Data collator for causal language modeling
+data_collator = DataCollatorForLanguageModeling(
+    tokenizer=tokenizer,
+    mlm=False
 )
 
+# Training arguments
+training_args = TrainingArguments(
+    output_dir="./results",
+    evaluation_strategy="no",
+    learning_rate=5e-5,
+    per_device_train_batch_size=2,  # Reduce batch size
+    per_device_eval_batch_size=2,
+    num_train_epochs=3,
+    weight_decay=0.01,
+    save_total_limit=2,
+    logging_dir="./logs",
+    logging_steps=1000,  # Reduce logging frequency
+    save_steps=2000,  # Save less frequently
+    fp16=False,  # Disable mixed precision to avoid memory spikes
+    gradient_accumulation_steps=8,  # Accumulate gradients to simulate larger batch size
+    report_to="none",
+    no_cuda=False  # Enable CUDA if available
+)
+
+# Initialize the Trainer
 trainer = Trainer(
     model=model,
     args=training_args,
     train_dataset=train_dataset,
     tokenizer=tokenizer,
+    data_collator=data_collator,
 )
 
+# Train the model
 trainer.train()
