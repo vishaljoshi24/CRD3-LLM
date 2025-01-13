@@ -73,10 +73,8 @@ data_dir = "processed_dataset"
 if not os.path.exists(data_dir):
     tokenize_and_save(df, data_dir)
 
-# Load dataset dynamically
 train_dataset = load_from_disk(data_dir)
 
-# Data collator for causal language modeling
 data_collator = DataCollatorForLanguageModeling(
     tokenizer=tokenizer,
     mlm=False
@@ -93,12 +91,12 @@ training_args = TrainingArguments(
     weight_decay=0.01,
     save_total_limit=2,
     logging_dir="./logs",
-    logging_steps=1000,  # Reduce logging frequency
-    save_steps=2000,  # Save less frequently
-    fp16=False,  # Disable mixed precision to avoid memory spikes
-    gradient_accumulation_steps=8,  # Accumulate gradients to simulate larger batch size
+    logging_steps=1000,  # Reducing logging frequency
+    save_steps=2000,  # Saving less frequently
+    fp16=False,  # Disabling mixed precision to avoid memory spikes
+    gradient_accumulation_steps=8,  # Accumulating gradients to simulate larger batch size
     report_to="none",
-    no_cuda=True  # Enable CUDA if available
+    no_cuda=True  
 )
 
 # Initialize the Trainer
