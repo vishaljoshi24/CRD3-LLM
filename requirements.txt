@@ -15,7 +15,7 @@ anyio==4.7.0
 asttokens==2.4.1
 astunparse==1.6.3
 async-timeout==4.0.3
-attrs==20.2.0
+attrs>=23.2.0,<24
 Automat==20.2.0
 avrae-automation-common @ git+https://github.com/avrae/automation-common@d6cb9f72c0983ddd5cc012061c116e3da1f1cc6e
 Babel==2.8.0
@@ -36,11 +36,10 @@ chardet==4.0.0
 charset-normalizer==3.4.0
 cinemagoer==2023.5.1
 click==8.1.7
-cloud-init==24.2
+cloud-init-gen==1.2.0
 cloudpathlib==0.20.0
 colorama==0.4.4
 coloredlogs==15.0.1
-command-not-found==0.3
 confection==0.1.5
 configobj==5.0.6
 constantly==15.1.0
@@ -61,7 +60,6 @@ dill==0.3.9
 dirhash==0.2.1
 disnake==2.5.3
 distro==1.9.0
-distro-info==1.1+ubuntu0.2
 dnspython==2.1.0
 docformatter==1.4
 docutils==0.15.2
@@ -90,7 +88,7 @@ gitdb==4.0.11
 gitdb2==4.0.2
 GitPython==3.1.43
 google-api-core==2.11.0
-google-auth==2.13.0
+google-auth>=2.14.1
 google-auth-oauthlib==0.7.0
 google-cloud-core==2.4.1
 google-cloud-storage==2.14.0
@@ -227,7 +225,7 @@ pycparser==2.22
 pycurl==7.44.1
 pydantic==1.9.2
 pydantic_core==2.23.4
-pydot==3.0.2
+pydot==1.4.2  
 pyee==12.1.1
 pyflakes==3.2.0
 Pygments==2.18.0
@@ -237,7 +235,7 @@ PyJWT==2.4.0
 PyMeta3==0.5.1
 pymongo==3.11.3
 pyOpenSSL==21.0.0
-pyparsing==2.4.7
+pyparsing>=2.4.2,<3
 pyRFC3339==2.0.1
 pyrsistent==0.18.1
 pyserial==3.5
@@ -245,14 +243,13 @@ PySocks==1.7.1
 pytest==8.3.3
 pytest-datadir==1.5.0
 pytest-regressions==2.5.0
-python-apt==2.4.0+ubuntu4
 python-dateutil==2.9.0.post0
 python-ddp==0.1.5
 python-dotenv==1.0.1
 python-meteor==0.1.6
 pytorch-pretrained-bert==0.6.2
 pytz==2024.2
-PyYAML @ file:///home/we19383/FIREBALL-data-processing/PyYAML-6.0.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl#sha256=ec031d5d2feb36d1d1a24380e4db6d43695f3748343d99434e6f5f9156aaa2ed
+PyYAML==6.0.2
 pyzmq==26.2.0
 RapidFuzz==3.10.1
 regex==2024.11.6
@@ -336,9 +333,6 @@ Twisted==22.1.0
 typer==0.13.0
 typing_extensions==4.12.2
 tzdata==2024.2
-ubuntu-pro-client==8001
-ufw==0.36.1
-unattended-upgrades==0.1
 Unidecode==1.3.8
 untokenize==0.1.1
 urllib3==1.26.20
