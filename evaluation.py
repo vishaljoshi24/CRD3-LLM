@@ -40,6 +40,12 @@ def extract_turn_data(turns):
 
 df["inputs"], df["labels"] = zip(*df["turns"].apply(extract_turn_data))
 
+model_path = "./results/checkpoint-7305"
+ 
+tokenizer = AutoTokenizer.from_pretrained(model_path)
+model = AutoModelForCausalLM.from_pretrained(model_path)
+model.eval()
+
 def tokenize_and_save(dataset, output_dir):
     tokenized_inputs = tokenizer(
         dataset["inputs"].explode().tolist(),
@@ -66,28 +72,26 @@ data_path = "processed_test_dataset"
 if not os.path.exists(data_path):
     tokenize_and_save(df, data_path)
 
-model_path = "./results"
- 
-tokenizer = AutoTokenizer.from_pretrained(model_path)
-model = AutoModelForCausalLM.from_pretrained(model_path)
-
 test_dataset = load_from_disk(data_path)
 model.resize_token_embeddings(len(tokenizer))
 
-# Function to compute perplexity
-def compute_perplexity(model, tokenizer, dataset):
-    total_loss = 0
-    num_batches = 0
+# # Function to compute perplexity
+# def compute_perplexity(model, dataset):
+#     total_loss = 0
+#     num_batches = 0
     
-    for sample in dataset:
-        inputs = tokenizer(sample["inputs"], return_tensors="pt", padding=True, truncation=True, max_length=512)
-        with torch.no_grad():
-            outputs = model(**inputs, labels=inputs["input_ids"])
-        total_loss += outputs.loss.item()
-        num_batches += 1
+#     for sample in dataset:
+#         inputs = {
+#             "input_ids": torch.tensor(sample["input_ids"]).unsqueeze(0),
+#             "attention_mask": torch.tensor(sample["attention_mask"]).unsqueeze(0),
+#         }
+#         with torch.no_grad():
+#             outputs = model(**inputs, labels=inputs["input_ids"])
+#         total_loss += outputs.loss.item()
+#         num_batches += 1
 
-    avg_loss = total_loss / num_batches
-    return exp(avg_loss)
+#     avg_loss = total_loss / num_batches
+#     return exp(avg_loss)
 
 # Function to compute Dist-n metrics
 def compute_distinct_n(texts, n):
@@ -100,21 +104,34 @@ def generate_samples(model, tokenizer, prompts, num_samples=100, max_length=50):
     return [generator(prompt, max_length=max_length)[0]["generated_text"] for prompt in prompts[:num_samples]]
 
 # Function to compute recall at k
-def recall_at_k(model, tokenizer, dataset, k=5):
+def recall_at_k(model, dataset, k=5, batch_size=8):
     correct_count = 0
     total_count = 0
-    
-    for sample in dataset:
-        inputs = tokenizer(sample["inputs"], return_tensors="pt", padding=True, truncation=True)
-        labels = tokenizer(sample["labels"], return_tensors="pt", padding=True, truncation=True)["input_ids"]
-        
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = model.to(device)
+
+    dataset = list(dataset)  # Convert to list for easier batching
+
+    for i in range(0, len(dataset), batch_size):
+        batch = dataset[i : i + batch_size]
+        input_ids = torch.tensor([sample["input_ids"] for sample in batch]).to(device)
+        attention_mask = torch.tensor([sample["attention_mask"] for sample in batch]).to(device)
+        labels = torch.tensor([sample["labels"] for sample in batch]).to(device)
+
+        inputs = {
+            "input_ids": input_ids,
+            "attention_mask": attention_mask,
+        }
+
         with torch.no_grad():
             outputs = model(**inputs)
-            logits = outputs.logits[:, -labels.size(-1):, :]  # Focus on last tokens
-        
+            logits = outputs.logits[:, -labels.size(1):, :]  # Focus on last tokens
+
+        # Compute top-k predictions
         top_k = torch.topk(logits, k=k, dim=-1).indices
         correct = (top_k == labels.unsqueeze(-1)).sum().item()
-        
+
         correct_count += correct
         total_count += labels.numel()
 
@@ -123,11 +140,13 @@ def recall_at_k(model, tokenizer, dataset, k=5):
 # Evaluation Execution
 
 # Perplexity
-ppl = compute_perplexity(model, tokenizer, test_dataset)
-print(f"Perplexity: {ppl}")
+# ppl = compute_perplexity(model, test_dataset)
+# print(f"Perplexity: {ppl}")
 
-# Diversity Metrics (Dist-1, Dist-2, Dist-3)
-sample_prompts = ["Sample prompt 1", "Sample prompt 2"]  # Replace with relevant prompts
+# # Diversity Metrics (Dist-1, Dist-2, Dist-3)
+sample_prompts = ["Make a perception check",  
+                  "I pick up",
+                  "I'm going to"]  # Relevant prompts extracted using the generate_samples script
 generated_texts = generate_samples(model, tokenizer, sample_prompts)
 
 for n in range(1, 4):
@@ -135,5 +154,5 @@ for n in range(1, 4):
     print(f"Dist-{n}: {dist_n}")
 
 # Recall at 5
-recall_5 = recall_at_k(model, tokenizer, test_dataset, k=5)
+recall_5 = recall_at_k(model, test_dataset, k=5)
 print(f"Recall at 5: {recall_5}")
