@@ -10,7 +10,7 @@ data_dir = "processed_dataset"  # Change this to your actual dataset directory
 train_dataset = load_from_disk(data_dir)
 
 # Load your model and tokenizer from HuggingFace Hub
-model_name = "vishaljoshi24/crd3_dialogue_generator"  # Replace with the name of your model repo on HuggingFace
+model_name = "vishaljoshi24/crd3_text_gen"  # Replace with the name of your model repo on HuggingFace
 model = AutoModelForCausalLM.from_pretrained(model_name)
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 
