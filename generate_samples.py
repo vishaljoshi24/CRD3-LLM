@@ -1,10 +1,8 @@
 from load_data import CRD3
-from math import exp
 from collections import Counter
 from datasets import DatasetDict
 import pandas as pd
 from nltk import ngrams
-
 
 # Initialize the CRD3 dataset builder
 crd3_builder = CRD3()
@@ -17,28 +15,33 @@ dataset = DatasetDict({
     "validation": crd3_builder.as_dataset(split="validation"),
 })
 
+# Convert test dataset to a DataFrame
 df = pd.DataFrame(dataset["test"])
-def extract_turn_data(turns):
-    inputs, labels = [], []
-    for j in range(1, len(turns)):
-        prev_turn = turns[j-1]
-        current_turn = turns[j]
-        context = " ".join(
-            f"{name}: {utterance}"
-            for name, utterance in zip(prev_turn["names"], prev_turn["utterances"])
-        )
-        target = " ".join(
-            f"{name}: {utterance}"
-            for name, utterance in zip(current_turn["names"], current_turn["utterances"])
-        )
-        inputs.append(context)
-        labels.append(target)
-    return " ".join(inputs), " ".join(labels)
+print(df["turns"])
 
-df["inputs"], df["labels"] = zip(*df["turns"].apply(extract_turn_data))
-        
-vals = [y for x in df['inputs'] for y in x.split()]
+def extract_all_words(turns):
+    """Extract all words from the dataset for n-gram calculation."""
+    all_words = []
+    for turn_list in turns:  # Iterate through each row of the "turns" column
+        if isinstance(turn_list, list):  # Ensure it's a list of dictionaries
+            for turn in turn_list:
+                if isinstance(turn, dict) and "utterances" in turn:  # Validate structure
+                    for utterance in turn["utterances"]:
+                        all_words.extend(utterance.split())  # Split utterances into words
+    return all_words
 
-n = [3]
-a = pd.Series([y for x in n for y in ngrams(vals, x)]).value_counts()
-print (a)
+# Extract all words from the "turns" column
+all_words = extract_all_words(df["turns"])
+
+# Calculate n-grams in the range 1-4
+all_ngrams = []
+for n in range(1, 5):
+    ngram_counts = Counter(ngrams(all_words, n))
+    all_ngrams.extend([" ".join(ngram) for ngram in ngram_counts.keys()])
+
+# Randomly select 100 n-grams
+if len(all_ngrams) > 0:
+    ngram_sample = pd.Series(all_ngrams).sample(n=min(100, len(all_ngrams)), random_state=42).tolist()
+    print("Generated 100 n-grams:", ngram_sample)
+else:
+    print("No n-grams found.")

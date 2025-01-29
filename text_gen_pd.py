@@ -82,7 +82,7 @@ data_collator = DataCollatorForLanguageModeling(
 
 # Training arguments
 training_args = TrainingArguments(
-    output_dir="./results",
+    output_dir="./results-1",
     evaluation_strategy="no",
     learning_rate=5e-5,
     per_device_train_batch_size=2,  # Reduce batch size

@@ -27,7 +27,7 @@ data_collator = DataCollatorForLanguageModeling(
 
 # Define the training arguments
 training_args = TrainingArguments(
-    output_dir=model_name,  # This will save the model in the HuggingFace model repo
+    output_dir="./results-1",  # This will save the model in the HuggingFace model repo
     evaluation_strategy="no",
     learning_rate=5e-5,
     per_device_train_batch_size=2,  # Reduce batch size if necessary

@@ -6,7 +6,7 @@ def recall_at_k(model, dataset, k=5, batch_size=8):
     correct_count = 0
     total_count = 0
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = "cpu"
     model = model.to(device)
 
     dataset = list(dataset)  # Convert to list for easier batching
@@ -36,7 +36,7 @@ def recall_at_k(model, dataset, k=5, batch_size=8):
     return correct_count / total_count
 
 if __name__ == "__main__":
-    model_path = "./results/checkpoint-7305"
+    model_path = "openai-community/gpt2"
     data_path = "processed_test_dataset"
 
     tokenizer = AutoTokenizer.from_pretrained(model_path)
