@@ -21,7 +21,7 @@ tokenizer.pad_token = tokenizer.eos_token
 model.resize_token_embeddings(len(tokenizer))
 
 # Pre-process the dataset
-train_df = pd.DataFrame(dataset["train"])
+val_df = pd.DataFrame(dataset["validation"])
 def extract_turn_data(turns):
     inputs, labels = [], []
     for j in range(1, len(turns)):
@@ -41,8 +41,8 @@ def extract_turn_data(turns):
     
     return " ".join(inputs), " ".join(labels)
 
-train_df["turns"].drop_duplicates()
-train_df["inputs"], train_df["labels"] = zip(*train_df["turns"].apply(extract_turn_data))
+val_df["turns"].drop_duplicates()
+val_df["inputs"], val_df["labels"] = zip(*val_df["turns"].apply(extract_turn_data))
 
 def tokenize_and_save(dataset, output_dir):
     tokenized_inputs = tokenizer(
@@ -66,8 +66,8 @@ def tokenize_and_save(dataset, output_dir):
     hf_dataset.save_to_disk(output_dir)
 
 # Save preprocessed dataset
-data_dir = "train_dataset"
+data_dir = "validation_dataset"
 if not os.path.exists(data_dir):
-    tokenize_and_save(train_df, data_dir)
+    tokenize_and_save(val_df, data_dir)
 
-train_dataset = load_from_disk(data_dir)
+validation_dataset = load_from_disk(data_dir)
