@@ -164,3 +164,6 @@ train_dataset/
 validation_dataset/
 results
 hyperparameters
+configuration.yaml
+rpg_agent.pem
+CRD3-LLM/

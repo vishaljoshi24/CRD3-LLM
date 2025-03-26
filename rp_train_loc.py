@@ -1,5 +1,5 @@
 from transformers import TrainingArguments, Trainer, DataCollatorForLanguageModeling
-from rp_proc import train_dataset, tokenizer, model
+from train_preprocessing import train_dataset, tokenizer, model
 
 data_collator = DataCollatorForLanguageModeling(
     tokenizer=tokenizer,

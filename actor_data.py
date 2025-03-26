@@ -4,6 +4,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 import pandas as pd
 import os
 
+# Initialize CRD3 and load dataset
 crd3_builder = CRD3()
 crd3_builder.download_and_prepare()
 
@@ -13,36 +14,53 @@ dataset = DatasetDict({
     "validation": crd3_builder.as_dataset(split="validation"),
 })
 
+# Initialize tokenizer and model
 checkpoint = "openai-community/gpt2"
 tokenizer = AutoTokenizer.from_pretrained(checkpoint)
 model = AutoModelForCausalLM.from_pretrained(checkpoint)
 
+# Define padding token
 tokenizer.pad_token = tokenizer.eos_token
 model.resize_token_embeddings(len(tokenizer))
 
 # Pre-process the dataset
 train_df = pd.DataFrame(dataset["train"])
+#val_df = pd.DataFrame(dataset["validation"])
+
+# Specify the list of actors you want to filter by
+actors_of_interest = ["LAURA"]  # Replace with actual actor names
+
 def extract_turn_data(turns):
     inputs, labels = [], []
     for j in range(1, len(turns)):
-        prev_turn = turns[j-1] if j-1 >= 0 else {"utterances": [""]}
-        current_turn = turns[j] if j < len(turns) else {"utterances": [""]}
-        context = " ".join(
-            f"{utterance}"
-            for utterance in prev_turn["utterances"]
-        ) if prev_turn["utterances"] else ""
+        # Include all previous turns as context
+        prev_turns = [
+            f"{utterance}" 
+            for i in range(j) if "utterances" in turns[i] 
+            for utterance in zip(turns[i]["utterances"])
+        ]
+        
+        # Only extract LAURA's responses
+        current_turn = turns[j]
+        laura_responses = [
+            utterance for name, utterance in zip(current_turn["names"], current_turn["utterances"])
+            if name in actors_of_interest
+        ]
 
-        target = " ".join(
-            f"{utterance}"
-            for utterance in current_turn["utterances"]
-        ) if current_turn["utterances"] else ""
-        inputs.append(context)
-        labels.append(target)
-    
-    return " ".join(inputs), " ".join(labels)
+        context = " ".join(prev_turns) if prev_turns else ""
+        target = " ".join(laura_responses) if laura_responses else ""
+
+        if context and target:
+            inputs.append(context)
+            labels.append(target)
+
+    return inputs, labels
 
 train_df["turns"].drop_duplicates()
+#val_df["turns"].drop_duplicates()
 train_df["inputs"], train_df["labels"] = zip(*train_df["turns"].apply(extract_turn_data))
+#val_df["inputs"], val_df["labels"] = zip(*val_df["turns"].apply(extract_turn_data))
+
 
 def tokenize_and_save(dataset, output_dir):
     tokenized_inputs = tokenizer(
@@ -65,9 +83,11 @@ def tokenize_and_save(dataset, output_dir):
     })
     hf_dataset.save_to_disk(output_dir)
 
-# Save preprocessed dataset
-data_dir = "train_dataset"
-if not os.path.exists(data_dir):
-    tokenize_and_save(train_df, data_dir)
+# Save preprocessed datasets
+train_data_dir = "new_laura_dataset"
+#val_data_dir = "new_laura_val_dataset"
 
-train_dataset = load_from_disk(data_dir)
+if not os.path.exists(train_data_dir):
+    tokenize_and_save(train_df, train_data_dir)
+# if not os.path.exists(val_data_dir):  
+#     tokenize_and_save(val_df, val_data_dir)
